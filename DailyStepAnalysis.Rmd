@@ -1,0 +1,228 @@
+---
+title: "Daily Step Analysis"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+## Synopsis
+
+This project is for Cousera Reproducible Research Course Projet 1. The aim is to fulfil the required assignment instructions as below:
+
+*Assignment Instructions:*
+
+1. Code for reading in the dataset and/or processing the data 
+2. Histogram of the total number of steps taken each day 
+3. Mean and median number of steps taken each day 
+4. Time series plot of the average number of steps taken 
+5. The 5-minute interval that, on average, contains the maximum number of steps 
+6. Code to describe and show a strategy for imputing missing data 
+7. Histogram of the total number of steps taken each day after missing values are imputed
+8. Panel plot comparing the average number of steps taken per 5-minute interval across weekdays and weekends 
+9. All of the R code needed to reproduce the results (numbers, plots, etc.) in the report
+
+
+### Steps in the project
+- Load Data
+- Convert date format from character to date
+- Realize item 2 to 8 required in assignment. The item 9 is covered in all of them.
+
+
+## Loading Data
+```{r}
+#download original data for first time
+
+#url <- "https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2Factivity.zip"
+#origfile <- tempfile()
+#download.file(url, origfile)
+#unzip(origfile)
+#unlink(origfile)
+
+activity <- read.csv("activity.csv", sep=",")
+
+dim(activity)
+head(activity)
+
+```
+
+The source data set is stored locally after downloading, so it is directly read from loal file.
+
+Three variables are inlcuded in the downloaded date:
+- steps: Number of steps taking in 5 minutes interval. Some are missing with value 'NA'.
+- date: Day of the record. They need be converted to Date format.
+- interval: The time interval identifier for that day.
+
+Following libraries are required:
+
+```{r}
+library(ggplot2)
+library(dplyr)
+library(gridExtra)
+Sys.setlocale("LC_TIME", "English")
+
+```
+
+## Clean Data
+
+### Update date format
+
+The variable date format is converted from character to "Date".
+
+```{r}
+class(activity$date)
+
+activity$date <- as.Date(activity$date, format = "%Y-%m-%d")
+class(activity$date)
+
+```
+
+
+## Item 2: Histogram of total number of steps taken each day
+## Item 3: Mean and median of total number of steps taken each day
+
+```{r}
+stepsPerDay <- aggregate(steps ~ date, data = activity, sum, na.action = na.omit)
+
+meanStepsbyDay <- mean(stepsPerDay$steps, na.rm=TRUE)
+print(meanStepsbyDay)
+medianStepsbyDay <- median(stepsPerDay$steps, na.rm=TRUE)
+print(medianStepsbyDay)
+
+g <- ggplot(stepsPerDay, aes(steps))
+g + geom_histogram(boundary = 0, binwidth = 2000, col = "grey", fill="lightblue") +
+  ggtitle("Number of Steps Per Day") +
+  xlab("Steps") + ylab("Frequency") +
+  scale_x_continuous(breaks=seq(0,24000,4000)) +
+  scale_y_continuous(breaks=seq(0,20,2)) +
+  geom_segment(size=1, colour="red", aes(x=meanStepsbyDay, y=8, xend=meanStepsbyDay, yend=Inf)) +
+  geom_segment(size=1, colour="blue", aes(x=medianStepsbyDay, y=8, xend=medianStepsbyDay, yend=-Inf)) +
+  annotate("text", x=4000, y=14, label=paste("Mean Steps =", as.character(round(meanStepsbyDay))), color="red", size = 3) +
+  annotate("text", x=4000, y=13, label=paste("Median Steps =", as.character(round(medianStepsbyDay))), color="blue", size = 3)
+
+#save figure
+dev.copy(png, file = "DailySteps_2&3.png", height = 600, width = 600)
+dev.off()
+
+```
+
+
+## Item4: Time series plot of the average number of steps taken
+## The 5-minute interval that, on average, contains the maximum number of steps 
+
+
+```{r}
+avgStepsPerTime <- aggregate(steps ~ interval, data = activity, mean, na.action = na.omit)
+
+maxStepsPerTime <- subset(avgStepsPerTime, steps==max(avgStepsPerTime$steps))
+print(maxStepsPerTime)
+
+g <- ggplot(avgStepsPerTime, aes(interval, steps))
+g + geom_line(col = "blue") +
+  ggtitle("Average Steps per Time Interval") +
+  xlab("Time - 5 minutes interval") + ylab("Steps") +
+  scale_x_continuous(breaks=seq(0,2400,400)) +
+  scale_y_continuous(breaks=seq(0,250,50)) +
+  theme(plot.title = element_text(face="bold", size=10)) +
+  geom_vline(xintercept=maxStepsPerTime$interval, colour="red", linetype="longdash") +
+  annotate("text", x=1200, y=200, label=paste("Max Average Steps =", as.character(round(maxStepsPerTime$steps)), "at interval", as.character(maxStepsPerTime$interval)), color="red")
+
+#save figure
+dev.copy(png, file = "DailySteps_4&5.png", height = 600, width = 600)
+dev.off()
+
+```
+
+
+## Item6: Imputing missing data by average steps for that interval
+
+```{r}
+#Records with NA steps
+length(which(is.na(activity$steps)))
+head(activity)
+
+#Impute the steps as NA with average steps of that interval
+activityFull <- activity
+
+activityFull$steps[which(is.na(activityFull$steps))] <-
+	ceiling(avgStepsPerTime$steps[match(activityFull$interval, avgStepsPerTime$interval)])
+
+length(which(is.na(activityFull$steps)))
+
+head(activityFull)
+
+```
+
+
+## Item7: Histogram of the total number of steps taken each day after missing values are imputed
+
+```{r}
+
+# figure of raw data set
+g <- ggplot(stepsPerDay, aes(steps)) +
+  geom_histogram(boundary = 0, binwidth = 2000, col = "grey", fill="lightblue") +
+  ggtitle("Number of Steps Per Day - Raw Data") +
+  xlab("Steps") + ylab("Frequency") +
+  scale_x_continuous(breaks=seq(0,24000,4000)) +
+  scale_y_continuous(breaks=seq(0,20,2)) +
+  geom_segment(size=1, colour="red", aes(x=meanStepsbyDay, y=8, xend=meanStepsbyDay, yend=Inf)) +
+  geom_segment(size=1, colour="blue", aes(x=medianStepsbyDay, y=8, xend=medianStepsbyDay, yend=0)) +
+  annotate("text", x=5000, y=14, label=paste("Mean Steps =", as.character(round(meanStepsbyDay))), color="red", size = 3) +
+  annotate("text", x=5000, y=12, label=paste("Median Steps =", as.character(round(medianStepsbyDay))), color="blue", size = 3)
+
+# Calculate for new data by imputing NA steps
+stepsPerDayFull <- aggregate(steps ~ date, data = activityFull, sum, na.action = na.omit)
+
+meanStepsbyDayFull <- mean(stepsPerDayFull$steps, na.rm=TRUE)
+print(meanStepsbyDayFull)
+medianStepsbyDayFull <- median(stepsPerDayFull$steps, na.rm=TRUE)
+print(medianStepsbyDayFull)
+
+gFull <- ggplot(stepsPerDayFull, aes(steps)) + 
+  geom_histogram(boundary = 0, binwidth = 2000, col = "grey", fill="lightblue") +
+  ggtitle("Number of Steps Per Day after imputing NA steps") +
+  xlab("Steps") + ylab("Frequency") +
+  scale_x_continuous(breaks=seq(0,24000,4000)) +
+  scale_y_continuous(breaks=seq(0,30,5)) +
+  geom_segment(size=1, colour="red", aes(x=meanStepsbyDayFull, y=0, xend=meanStepsbyDayFull, yend=Inf)) +
+  geom_segment(size=1, colour="blue", aes(x=medianStepsbyDayFull, y=0, xend=medianStepsbyDayFull, yend=Inf)) +
+  annotate("text", x=4000, y=20, label=paste("Mean Steps =", as.character(round(meanStepsbyDayFull))), color="red", size = 3) +
+  annotate("text", x=4000, y=18, label=paste("Median Steps =", as.character(round(medianStepsbyDayFull))), color="blue", size = 3)
+
+library(gridExtra)
+grid.arrange(g, gFull, nrow = 2)
+
+#save figure
+dev.copy(png, file = "DailySteps_7.png", height = 600, width = 600)
+dev.off()
+
+
+```
+
+## Item8: Panel plot comparing the average number of steps taken per 5-minute interval across weekdays and weekends 
+
+```{r}
+
+activityFull$weekday <- "weekday"
+activityFull$dayType <- weekdays(activityFull$date)
+activityFull$weekday[which(activityFull$dayType == "Saturday" |
+	activityFull$dayType == "Sunday")] <- "weekend"
+
+stepsPerTimeWD <- aggregate(steps ~ interval+weekday, data=activityFull, FUN=mean, na.action=na.omit)
+
+w <- ggplot(stepsPerTimeWD, aes(interval, steps))
+w + geom_line(col="blue") + 
+  ggtitle("Average Steps per time across weekdays vs weekends") +
+  xlab("Time in 5 minutes") + ylab("Steps") +
+  facet_grid( weekday~.) +
+  scale_x_continuous(breaks=seq(0,2500,500)) +
+  scale_y_continuous(breaks=seq(0,300,50))
+
+#save figure
+dev.copy(png, file = "DailySteps_8.png", height = 600, width = 600)
+dev.off()
+
+```
+
