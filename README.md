@@ -4,6 +4,8 @@ This repository is for Coursera, Reproducible Research: Peer Assessment 1, about
 
 ## Introduction to the Project
 
+The data set is provided by Coursera welink. This device collects data at 5 minute intervals through out the day. The data consists of two months of data from an anonymous individual collected during the months of October and November, 2012 and include the number of steps taken in 5 minute intervals each day. 
+
 The purpose of this project is to analyze the provided data set and find out answers to assignments required as following.
 
 *Assignment Instructions:*
